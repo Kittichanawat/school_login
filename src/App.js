@@ -30,19 +30,109 @@ function App() {
         return 'ครู';
       case 'parent':
         return 'ผู้ปกครอง';
+      case 'student':
+        return 'นักเรียน';
+      case 'executive':
+        return 'ผู้บริหาร';
+      case 'registrar':
+        return 'เจ้าหน้าที่ทะเบียน';
       default:
         return roleName;
     }
   };
 
-  const showUserRoles = (roles) => {
-    const rolesList = roles.map(role => `- ${getRoleText(role.role_name)}`).join('\n');
+  const getProfileDetails = (user) => {
+    let details = [];
+    const { profiles } = user;
+
+    const userFullName = `${user.user_fname} ${user.user_lname}`;
+
+    if (profiles.admin) {
+      details.push(`<strong>ข้อมูลผู้ดูแลระบบ:</strong><br>` +
+        `ชื่อ-นามสกุล: ${userFullName}<br>` 
+        );
+    }
+    if (profiles.teacher) {
+      details.push(`<strong>ข้อมูลครู:</strong><br>` +
+          `ชื่อ-นามสกุล: ${userFullName}<br>` +
+          `ประจำชั้น: ${profiles.teacher.teacher_classes.map(tc => tc.class.class_name).join(', ')}<br>`
+      );
+  }
+    if (profiles.executive) {
+      details.push(`<strong>ข้อมูลผู้บริหาร:</strong><br>` +
+        `ชื่อ-นามสกุล: ${userFullName}<br>` +
+        `ตำแหน่ง: ${profiles.executive.position}<br>` );
+    }
+    if (profiles.registrar) {
+      details.push(`<strong>ข้อมูลเจ้าหน้าที่ทะเบียน:</strong><br>` +
+        `ชื่อ-นามสกุล: ${userFullName}<br>` );
+    }
+    if (profiles.parent) {
+      details.push(`<strong>ข้อมูลผู้ปกครอง:</strong><br>` +
+          `ชื่อ-นามสกุล: ${userFullName}<br>` +
+          `นักเรียนในปกครอง:<br>` +
+          profiles.parent.students.map(student => 
+              `- ${student.student_name}`
+          ).join('<br>')
+      );
+   
+    }
+    if (profiles.student) {
+      // ดึงข้อมูลครูประจำชั้นทั้งหมด
+      const homeroomTeachers = profiles.student.class?.SchTeacherClass || [];
+      
+      // สร้างรายชื่อครูประจำชั้น
+      const teacherNames = homeroomTeachers
+          .map(homeroom => {
+              const teacher = homeroom?.teacher?.user;
+              return teacher 
+                  ? `- ${teacher.user_fname} ${teacher.user_lname}`
+                  : null;
+          })
+          .filter(name => name !== null)  // กรองเอาเฉพาะชื่อที่ไม่เป็น null
+          .join('<br>');  // แยกบรรทัดด้วย <br>
+       // ดึงข้อมูลเทอม
+      const term = homeroomTeachers[0]?.term;
+      const academicInfo = term 
+          ? `${term.term_name} ปีการศึกษา ${term.academic_year}`
+          : 'ไม่ระบุ';
+       // สร้างรายชื่อผู้ปกครอง
+      const parentNames = profiles.student.parents
+          .map(parent => `- ${parent.parent_name}`)
+          .join('<br>');
+       details.push(`<strong>ข้อมูลนักเรียน:</strong><br>` +
+          `ชื่อ-นามสกุล: ${userFullName}<br>` +
+          `เพศ: ${profiles.student.std_gend}<br>` +
+          `รหัสนักเรียน: ${profiles.student.std_code}<br>` +
+          `สถานะ: ${profiles.student.std_state}<br>` +
+          `ระดับชั้น: ${profiles.student.class.class_name}<br>` +
+          `ครูประจำชั้น:<br>${teacherNames || 'ไม่ระบุ'}<br>` +
+          `ภาคเรียน: ${academicInfo}<br>` +
+          `ผู้ปกครอง:<br>${parentNames || 'ไม่ระบุ'}`
+      );
+   
+  }
+    
+    return details.join('<br><br>');
+  };
+
+  const showUserRoles = (user) => {
+    const rolesList = user.roles.map(role => 
+      `- ${getRoleText(role)}`
+    ).join('<br>');
+    
+    const profileDetails = getProfileDetails(user);
     
     Swal.fire({
-      title: 'สิทธิ์การเข้าใช้งานของคุณ',
-      html: `คุณมีสิทธิ์การเข้าใช้งานดังนี้:<br><br><pre>${rolesList}</pre>`,
+      title: 'ข้อมูลผู้ใช้งาน',
+      html: `
+        <strong>ชื่อผู้ใช้:</strong> ${user.username}<br>
+        <strong>สิทธิ์การใช้งาน:</strong><br>${rolesList}
+        ${profileDetails ? '<br><br>' + profileDetails : ''}
+      `,
       icon: 'info',
-      confirmButtonText: 'ตกลง'
+      confirmButtonText: 'ตกลง',
+      width: '600px'
     });
   };
 
@@ -67,13 +157,12 @@ function App() {
         await Swal.fire({
           icon: 'success',
           title: 'เข้าสู่ระบบสำเร็จ',
-          text: 'ยินดีต้อนรับเข้าสู่ระบบ',
+          text: response.data.message,
           timer: 1500,
           showConfirmButton: false
         });
 
-        const roles = response.data.data.user.roles;
-        showUserRoles(roles);
+        showUserRoles(response.data.data.user);
       }
     } catch (error) {
       Swal.fire({
