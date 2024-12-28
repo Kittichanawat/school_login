@@ -127,6 +127,7 @@ function App() {
       title: 'ข้อมูลผู้ใช้งาน',
       html: `
         <strong>ชื่อผู้ใช้:</strong> ${user.username}<br>
+        <strong>เลขประจำตัวประชาชน:</strong> ${user.user_nat_id || '-'}<br>
         <strong>สิทธิ์การใช้งาน:</strong><br>${rolesList}
         ${profileDetails ? '<br><br>' + profileDetails : ''}
       `,
@@ -168,7 +169,7 @@ function App() {
       Swal.fire({
         icon: 'error',
         title: 'เกิดข้อผิดพลาด',
-        text: error.response?.data?.message || 'ไม่สามารถเข้าสู่ระบบได้',
+        text: error.response?.data?.message || 'ไม่สาม���รถเข้าสู่ระบบได้',
         confirmButtonText: 'ตกลง'
       });
     }
