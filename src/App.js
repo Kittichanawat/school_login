@@ -7,8 +7,8 @@ import { useNavigate } from 'react-router-dom';
 
 function App() {
   const [formData, setFormData] = useState({
-    username: '',
-    password: '',
+    user_uname: '',
+    user_password: '',
     rememberMe: false
   });
   
@@ -45,74 +45,100 @@ function App() {
     let details = [];
     const { profiles } = user;
 
-    const userFullName = `${user.user_fname} ${user.user_lname}`;
+    const userFullName = `${user.user_fname || ''} ${user.user_lname || ''}`;
+    const userContact = [
+      user.user_email ? `อีเมล: ${user.user_email}` : null,
+      user.user_phone ? `เบอร์โทร: ${user.user_phone}` : null
+    ].filter(Boolean).join('<br>');
 
     if (profiles.admin) {
       details.push(`<strong>ข้อมูลผู้ดูแลระบบ:</strong><br>` +
-        `ชื่อ-นามสกุล: ${userFullName}<br>` 
-        );
-    }
-    if (profiles.teacher) {
-      details.push(`<strong>ข้อมูลครู:</strong><br>` +
-          `ชื่อ-นามสกุล: ${userFullName}<br>` +
-          `ประจำชั้น: ${profiles.teacher.teacher_classes.map(tc => tc.class.class_name).join(', ')}<br>`
+        `ชื่อ-นามสกุล: ${userFullName}<br>` +
+        (userContact ? `${userContact}<br>` : '') +
+        `รหัสผู้ดูแลระบบ: ${profiles.admin.adm_id}`
       );
-  }
+    }
+
+    if (profiles.teacher) {
+      const classDetails = profiles.teacher.teacher_classes
+        .map(tc => `${tc.class.class_level || ''} /${tc.class.class_room || ''}`)
+        .filter(Boolean)
+        .join(', ');
+
+      details.push(`<strong>ข้อมูลครู:</strong><br>` +
+        `ชื่อ-นามสกุล: ${userFullName}<br>` +
+        (userContact ? `${userContact}<br>` : '') +
+        `รหัสครู: ${profiles.teacher.tea_id}<br>` +
+        `ประจำชั้น: ${classDetails || 'ไม่ระบุ'}`
+      );
+    }
+
     if (profiles.executive) {
       details.push(`<strong>ข้อมูลผู้บริหาร:</strong><br>` +
         `ชื่อ-นามสกุล: ${userFullName}<br>` +
-        `ตำแหน่ง: ${profiles.executive.position}<br>` );
+        (userContact ? `${userContact}<br>` : '') +
+        `รหัสผู้บริหาร: ${profiles.executive.exec_id}<br>` +
+        `ตำแหน่ง: ${profiles.executive.position}`
+      );
     }
+
     if (profiles.registrar) {
       details.push(`<strong>ข้อมูลเจ้าหน้าที่ทะเบียน:</strong><br>` +
-        `ชื่อ-นามสกุล: ${userFullName}<br>` );
+        `ชื่อ-นามสกุล: ${userFullName}<br>` +
+        (userContact ? `${userContact}<br>` : '') +
+        `รหัสเจ้าหน้าที่: ${profiles.registrar.reg_id}`
+      );
     }
+
     if (profiles.parent) {
+      const studentsList = profiles.parent.students
+        .map(student => `- ${student.student_name}`)
+        .join('<br>');
+
       details.push(`<strong>ข้อมูลผู้ปกครอง:</strong><br>` +
-          `ชื่อ-นามสกุล: ${userFullName}<br>` +
-          `นักเรียนในปกครอง:<br>` +
-          profiles.parent.students.map(student => 
-              `- ${student.student_name}`
-          ).join('<br>')
+        `ชื่อ-นามสกุล: ${userFullName}<br>` +
+        (userContact ? `${userContact}<br>` : '') +
+        `รหัสผู้ปกครอง: ${profiles.parent.par_id}<br>` +
+        `นักเรียนในปกครอง:<br>${studentsList || 'ไม่มีข้อมูล'}`
       );
-   
     }
+
     if (profiles.student) {
-      // ดึงข้อมูลครูประจำชั้นทั้งหมด
-      const homeroomTeachers = profiles.student.class?.SchTeacherClass || [];
-      
-      // สร้างรายชื่อครูประจำชั้น
-      const teacherNames = homeroomTeachers
-          .map(homeroom => {
-              const teacher = homeroom?.teacher?.user;
-              return teacher 
-                  ? `- ${teacher.user_fname} ${teacher.user_lname}`
-                  : null;
-          })
-          .filter(name => name !== null)  // กรองเอาเฉพาะชื่อที่ไม่เป็น null
-          .join('<br>');  // แยกบรรทัดด้วย <br>
-       // ดึงข้อมูลเทอม
-      const term = homeroomTeachers[0]?.term;
+      const parentsList = profiles.student.parents
+        .map(parent => `- ${parent.parent_name}`)
+        .join('<br>');
+
+      // ดึงข้อมูลครูประจำชั้นและเทอม
+      const teacherClass = profiles.student.class?.SchTeacherClass || [];
+      const teacherNames = teacherClass
+        .map(tc => {
+          const teacher = tc.teacher?.user;
+          return teacher 
+            ? `- ${teacher.user_fname || ''} ${teacher.user_lname || ''}`
+            : null;
+        })
+        .filter(Boolean)
+        .join('<br>');
+
+      // ดึงข้อมูลเทอม
+      const term = teacherClass[0]?.term;
       const academicInfo = term 
-          ? `${term.term_name} ปีการศึกษา ${term.academic_year}`
-          : 'ไม่ระบุ';
-       // สร้างรายชื่อผู้ปกครอง
-      const parentNames = profiles.student.parents
-          .map(parent => `- ${parent.parent_name}`)
-          .join('<br>');
-       details.push(`<strong>ข้อมูลนักเรียน:</strong><br>` +
-          `ชื่อ-นามสกุล: ${userFullName}<br>` +
-          `เพศ: ${profiles.student.std_gend}<br>` +
-          `รหัสนักเรียน: ${profiles.student.std_code}<br>` +
-          `สถานะ: ${profiles.student.std_state}<br>` +
-          `ระดับชั้น: ${profiles.student.class.class_name}<br>` +
-          `ครูประจำชั้น:<br>${teacherNames || 'ไม่ระบุ'}<br>` +
-          `ภาคเรียน: ${academicInfo}<br>` +
-          `ผู้ปกครอง:<br>${parentNames || 'ไม่ระบุ'}`
+        ? `${term.term_name} ปีการศึกษา ${term.academic_year}`
+        : 'ไม่ระบุ';
+
+      details.push(`<strong>ข้อมูลนักเรียน:</strong><br>` +
+        `ชื่อ-นามสกุล: ${userFullName}<br>` +
+        (userContact ? `${userContact}<br>` : '') +
+        `รหัสนักเรียน: ${profiles.student.std_code}<br>` +
+        `เพศ: ${profiles.student.std_gend}<br>` +
+        `สถานะการศึกษา: ${profiles.student.std_state}<br>` +
+        `ระดับชั้น: ${profiles.student.class?.class_level || 'ไม่ระบุ'} ห้อง ${profiles.student.class?.class_room || ''}<br>` +
+        `ครูประจำชั้น:<br>${teacherNames || 'ไม่ระบุ'}<br>` +
+        `ภาคเรียน: ${academicInfo}<br>` +
+        `ผู้ปกครอง:<br>${parentsList || 'ไม่ระบุ'}`
       );
-   
-  }
-    
+    }
+
     return details.join('<br><br>');
   };
 
@@ -126,7 +152,7 @@ function App() {
     Swal.fire({
       title: 'ข้อมูลผู้ใช้งาน',
       html: `
-        <strong>ชื่อผู้ใช้:</strong> ${user.username}<br>
+        <strong>ชื่อผู้ใช้:</strong> ${user.user_uname}<br>
         <strong>เลขประจำตัวประชาชน:</strong> ${user.user_nat_id || '-'}<br>
         <strong>สิทธิ์การใช้งาน:</strong><br>${rolesList}
         ${profileDetails ? '<br><br>' + profileDetails : ''}
@@ -142,15 +168,19 @@ function App() {
     
     try {
       const response = await axios.post(`${config.apiPath}/user/login`, {
-        username: formData.username,
-        password: formData.password
+        username: formData.user_uname,
+        password: formData.user_password
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (response.data.status === 'success') {
         localStorage.setItem('token', response.data.data.token);
         
         if (formData.rememberMe) {
-          localStorage.setItem('rememberedUsername', formData.username);
+          localStorage.setItem('rememberedUsername', formData.user_uname);
         } else {
           localStorage.removeItem('rememberedUsername');
         }
@@ -166,10 +196,13 @@ function App() {
         showUserRoles(response.data.data.user);
       }
     } catch (error) {
+      console.error('Login error:', error);
+      console.error('Response:', error.response?.data);
+      
       Swal.fire({
         icon: 'error',
         title: 'เกิดข้อผิดพลาด',
-        text: error.response?.data?.message || 'ไม่สาม���รถเข้าสู่ระบบได้',
+        text: error.response?.data?.message || 'ไม่สามารถเข้าสู่ระบบได้',
         confirmButtonText: 'ตกลง'
       });
     }
@@ -184,24 +217,24 @@ function App() {
               <h3 className="card-title text-center mb-4">เข้าสู่ระบบ</h3>
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
-                  <label htmlFor="username" className="form-label">ชื่อผู้ใช้</label>
+                  <label htmlFor="user_uname" className="form-label">ชื่อผู้ใช้</label>
                   <input
                     type="text"
                     className="form-control"
-                    id="username"
-                    value={formData.username}
+                    id="user_uname"
+                    value={formData.user_uname}
                     onChange={handleChange}
                     placeholder="กรุณากรอกชื่อผู้ใช้"
                     required
                   />
                 </div>
                 <div className="mb-3">
-                  <label htmlFor="password" className="form-label">รหัสผ่าน</label>
+                  <label htmlFor="user_password" className="form-label">รหัสผ่าน</label>
                   <input
                     type="password"
                     className="form-control"
-                    id="password"
-                    value={formData.password}
+                    id="user_password"
+                    value={formData.user_password}
                     onChange={handleChange}
                     placeholder="กรุณากรอกรหัสผ่าน"
                     required
