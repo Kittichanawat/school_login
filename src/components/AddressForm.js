@@ -6,9 +6,9 @@ import config from '../config';
 function AddressForm() {
   const [addressData, setAddressData] = useState({
     addr_etc: '',
-    addr_sub_dist: '',
-    addr_dist: '',
-    addr_prv: '',
+    prv_id: '',
+    dis_id: '',
+    subd_id: '',
     addr_pos_code: '',
     addr_tel_home: '',
     house_reg_num: '',
@@ -61,9 +61,9 @@ function AddressForm() {
     if (province) {
       setAddressData(prev => ({
         ...prev,
-        addr_prv: province.name_th,
-        addr_dist: '',
-        addr_sub_dist: '',
+        prv_id: province.id,
+        dis_id: '',
+        subd_id: '',
         addr_pos_code: ''
       }));
       setAmphures(province.amphure);
@@ -82,8 +82,8 @@ function AddressForm() {
     if (amphure) {
       setAddressData(prev => ({
         ...prev,
-        addr_dist: amphure.name_th,
-        addr_sub_dist: '',
+        dis_id: amphure.id,
+        subd_id: '',
         addr_pos_code: ''
       }));
       setTambons(amphure.tambon);
@@ -100,7 +100,7 @@ function AddressForm() {
     if (tambon) {
       setAddressData(prev => ({
         ...prev,
-        addr_sub_dist: tambon.name_th,
+        subd_id: tambon.id,
         addr_pos_code: tambon.zip_code
       }));
     }
@@ -110,75 +110,73 @@ function AddressForm() {
     e.preventDefault();
     
     try {
-        // ตรวจสอบข้อมูลที่จำเป็น
-        if (!addressData.addr_prv || !addressData.addr_dist || !addressData.addr_sub_dist || !addressData.addr_etc) {
-            throw new Error('กรุณากรอกข้อมูลที่อยู่ให้ครบถ้วน');
+      if (!addressData.prv_id || !addressData.dis_id || !addressData.subd_id || !addressData.addr_etc) {
+        throw new Error('กรุณากรอกข้อมูลที่อยู่ให้ครบถ้วน');
+      }
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('กรุณาเข้าสู่ระบบ');
+      }
+
+      const payload = {
+        addr_etc: addressData.addr_etc,
+        prv_id: parseInt(addressData.prv_id),
+        dis_id: parseInt(addressData.dis_id),
+        subd_id: parseInt(addressData.subd_id),
+        addr_pos_code: String(addressData.addr_pos_code),
+        addr_tel_home: addressData.addr_tel_home || null,
+        house_reg_num: addressData.house_reg_num || null,
+        addr_type: addressData.addr_type
+      };
+
+      console.log('Sending data:', payload);
+
+      const response = await axios.post(
+        `${config.apiPath}/`,
+        payload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
         }
+      );
 
-        const token = localStorage.getItem('token');
-        if (!token) {
-            throw new Error('กรุณาเข้าสู่ระบบ');
-        }
-
-        // ลร้าง payload ที่จะส่งไป
-        const payload = {
-            addr_etc: addressData.addr_etc,
-            addr_sub_dist: addressData.addr_sub_dist,
-            addr_dist: addressData.addr_dist,
-            addr_prv: addressData.addr_prv,
-            addr_pos_code: String(addressData.addr_pos_code),
-            addr_tel_home: addressData.addr_tel_home || null,
-            house_reg_num: addressData.house_reg_num || null,
-            addr_type: addressData.addr_type
-        };
-
-        console.log('Sending data:', payload);
-
-        const response = await axios.post(
-            `${config.apiPath}/address`,
-            payload,
-            {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            }
-        );
-
-        if (response.data.status === 'success') {
-            Swal.fire({
-                icon: 'success',
-                title: 'บันทึกข้อมูลสำเร็จ',
-                text: 'บันทึกข้อมูลที่อยู่เรียบร้อยแล้ว',
-                timer: 1500,
-                showConfirmButton: false
-            });
-            
-            // เคลียร์ฟอร์มหลังจากบันทึกสำเร็จ
-            setAddressData({
-                addr_etc: '',
-                addr_sub_dist: '',
-                addr_dist: '',
-                addr_prv: '',
-                addr_pos_code: '',
-                addr_tel_home: '',
-                house_reg_num: '',
-                addr_type: 'current'
-            });
-            setSelectedProvince(null);
-            setSelectedAmphure(null);
-            setSelectedTambon(null);
-        }
-    } catch (error) {
-        console.error('Error details:', error);
-        console.error('Response:', error.response?.data);
-        
+      if (response.data.status === 'success') {
         Swal.fire({
-            icon: 'error',
-            title: 'เกิดข้อผิดพลาด',
-            text: error.response?.data?.message || error.message || 'ไม่สามารถบันทึกข้อมูลได้',
-            confirmButtonText: 'ตกลง'
+          icon: 'success',
+          title: 'บันทึกข้อมูลสำเร็จ',
+          text: 'บันทึกข้อมูลที่อยู่เรียบร้อยแล้ว',
+          timer: 1500,
+          showConfirmButton: false
         });
+        
+        // เคลียร์ฟอร์ม
+        setAddressData({
+          addr_etc: '',
+          prv_id: '',
+          dis_id: '',
+          subd_id: '',
+          addr_pos_code: '',
+          addr_tel_home: '',
+          house_reg_num: '',
+          addr_type: 'current'
+        });
+        setSelectedProvince(null);
+        setSelectedAmphure(null);
+        setSelectedTambon(null);
+      }
+    } catch (error) {
+      console.error('Error details:', error);
+      console.error('Response:', error.response?.data);
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: error.response?.data?.message || error.message || 'ไม่สามารถบันทึกข้อมูลได้',
+        confirmButtonText: 'ตกลง'
+      });
     }
   };
 
